@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  worker-python:
+    build: ./worker-python
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./worker-python/.env
+    environment:
+      - PORT=8000
+
+  ingress-go:
+    build: ./ingress-go
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - PYTHON_WORKER_URL=http://worker-python:8000/process-transcript
+    depends_on:
+      - worker-python
