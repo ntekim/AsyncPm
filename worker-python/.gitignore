@@ -1,1 +1,12 @@
-.env
+# Secret Keys and Service Accounts
+*_service_account.json
+service_account.json
+*.env
+
+# Local Databases & Caches
+*.db
+local_asyncpm.db
+__pycache__/
+*.pyc
+venv/
+.venv/

@@ -35,7 +35,7 @@ parser_agent = Agent(
     name="TranscriptParserAgent",
     model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
     instruction="""
-    You are an expert transcript analyst. Read raw meeting transcripts and extract:
+    You are an expert transcript analyst. Your ONLY job is to read raw meeting transcripts and extract:
     1. A concise meeting title
     2. Key technical decisions made
     3. Unprocessed raw action items mentioned by participants.
@@ -47,24 +47,28 @@ scrum_agent = Agent(
     name="ScrumMasterAgent",
     model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
     instruction="""
-    You are a Certified Scrum Master. Take raw action items and format them into professional 
+    You are a Certified Scrum Master. Your ONLY job is to take raw action items and format them into professional 
     Agile User Stories or Technical Tasks with crisp summaries, acceptance criteria, priority 
     (High, Medium, Low), and issue types (Task, Bug, Story).
     """
 )
 
 # 4. Agent 3: Action Dispatcher Agent (Root Agent with MCP Tools)
-dispatcher_agent = Agent(
-    name="ActionDispatcherAgent",
+head_agent = Agent(
+    name="AsyncPMOrchestrator",
     model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
     instruction="""
-    You are AsyncPM, an autonomous Product Manager AI agent built on Google ADK 2.0.
+    You are the AsyncPM Chief Product Orchestrator managing a specialized team of AI agents.
 
-    CRITICAL EXECUTION INSTRUCTIONS:
-    1. Analyze the meeting transcript provided to extract key technical tasks.
-    2. For EVERY task extracted, you MUST invoke the tool `create_jira_issue` with the summary, description, issue_type, and priority.
-    3. After creating the Jira issues, you MUST invoke the tool `send_slack_summary` with the meeting title, executive summary, and created ticket IDs.
-    4. ABSOLUTELY DO NOT write text pretending or simulating tool execution (e.g., NEVER write "Simulated Jira creation"). You MUST execute real function calls using your tools.
+    WORKFLOW DELEGATION STEPS:
+    1. First, delegate the raw transcript to 'TranscriptParserAgent' to isolate technical decisions.
+    2. Next, delegate those technical decisions to 'ScrumMasterAgent' to format them into Agile User Stories.
+    3. For EACH resulting user story:
+       a. Call 'search_existing_tickets' FIRST to check for duplicates in persistent memory.
+       b. If a duplicate exists -> Call 'update_existing_jira_issue'.
+       c. If it is unique -> Call 'create_jira_issue'.
+    4. Call 'send_slack_summary' once all tickets are created or routed.
     """,
+    sub_agents=[parser_agent, scrum_agent], # Sub-agents explicitly attached!
     tools=[asyncpm_mcp_tools] # Native ADK MCP Toolset Injection!
 )
