@@ -20,6 +20,68 @@ AsyncPM is an autonomous background AI agent that eliminates administrative prod
 * **Integrations:** Atlassian Jira Cloud REST API v3 + Slack Block Kit Interactive API
 * **DevOps & Infrastructure:** Docker Compose, Makefile, GitHub Actions CI/CD (`.github/workflows/ci.yml`), Google Cloud Run
 
+## 📐 System Architecture Diagram
+
+```mermaid
+flowchart TD
+    %% flowchart TD
+    %% Subgraph 1: Event Triggers & Ingress
+    subgraph Ingress["1. Ingress & Event Triggers"]
+        A1[Google Drive Folder Watcher\ndrive_watcher.py] -->|New .txt / .mp3 file| B1[ingress-go Server\nCloud Run / Port 8080]
+        A2[Zoom / Google Meet Webhook] -->|POST /webhook| B1
+        A3[Direct HTTP API / Curl] -->|POST /webhook| B1
+        B1 -->|Instant <10ms Ack 200 OK| A2
+        B1 -->|Async Dispatch / PubSub| C1[worker-python FastAPI\nCloud Run / Port 8000]
+    end
+
+    %% Subgraph 2: Google ADK 2.0 Agent Backend
+    subgraph Backend["2. Agent Core & Google ADK 2.0 Engine"]
+        C1 --> C2[OpenTelemetry SDK\nOTEL Tracing]
+        C1 --> C3[ADK Session Service &\nRunner Engine]
+        
+        subgraph MultiAgent["Google ADK 2.0 Multi-Agent Team"]
+            D1[AsyncPMOrchestrator\nGemini 3.5 Flash] -->|Delegate| D2[TranscriptParserAgent\nGemini 3.5 Flash]
+            D1 -->|Delegate| D3[ScrumMasterAgent\nGemini 3.5 Flash]
+        end
+        
+        C3 --> MultiAgent
+    end
+
+    %% Subgraph 3: FastMCP Toolset & Execution
+    subgraph MCP["3. Model Context Protocol (FastMCP) Tools"]
+        D1 -->|Stdio JSON-RPC| E1[FastMCP Tool Server\nmcp_server.py]
+        E1 --> E2{MCP Tools}
+        E2 -->|search_existing_tickets| F1[(Persistent Ticket Memory)]
+        E2 -->|update_existing_jira_issue| F2[Atlassian Jira Cloud\nREST API v3]
+        E2 -->|send_slack_summary| F3[Slack Channel\n#asyncpm-update]
+        E2 -->|create_jira_issue| E3{Priority Check}
+    end
+
+    %% Subgraph 4: Governance & HITL
+    subgraph Governance["4. Human-in-the-Loop (HITL) Governance Gate"]
+        E3 -->|Medium / Low Priority| F2
+        E3 -->|High Priority| G1[Post Interactive Slack Card\nwith Approve / Dismiss Buttons]
+        G1 -->|PM Clicks Approve| G2[POST /slack/interactive\nFastAPI Endpoint]
+        G2 -->|execute_approved_jira_creation| F2
+    end
+
+    %% Subgraph 5: Persistence & Observability
+    subgraph Storage["5. Persistence & Observability"]
+        C1 -->|Save Execution Log| H1[(SQLite local_asyncpm.db\n/ GCP Firestore)]
+        C2 -->|Export Spans & Token Metrics| H2[Google Cloud Trace\n/ OTEL Collector]
+    end
+
+    %% Styling
+    classDef gcp fill:#4285F4,stroke:#333,stroke-width:2px,color:#fff;
+    classDef agent fill:#34A853,stroke:#333,stroke-width:2px,color:#fff;
+    classDef tool fill:#FBBC05,stroke:#333,stroke-width:2px,color:#000;
+    classDef hitl fill:#EA4335,stroke:#333,stroke-width:2px,color:#fff;
+
+    class B1,C1,H2 gcp;
+    class D1,D2,D3 agent;
+    class E1,E2 tool;
+    class G1,G2 hitl;
+```
 ---
 
 ## 🛠️ Local Setup & Spin-Up Instructions
