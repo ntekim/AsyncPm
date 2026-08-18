@@ -121,7 +121,7 @@ curl -X POST "http://localhost:8080/webhook" \
 **Scenario 4: Cross-Meeting Persistent Memory & Deduplication**
 Send a transcript mentioning a topic discussed in a previous meeting (e.g., "Redis caching"):
 
-- **What Happens:** AsyncPM calls the MCP tool ==search_existing_tickets==, ==searches local_asyncpm.db memory==, identifies the matching prior ticket, and calls ==update_existing_jira_issue== to append comments instead of creating a duplicate ticket!
+- **What Happens:** AsyncPM calls the MCP tool search_existing_tickets, searches local_asyncpm.db memory, identifies the matching prior ticket, and calls update_existing_jira_issue to append comments instead of creating a duplicate ticket!
 
 **Scenario 5: Google Drive Auto-Sync Trigger**
 1. Start the drive watcher: *make drive-watcher*.
@@ -131,11 +131,11 @@ Send a transcript mentioning a topic discussed in a previous meeting (e.g., "Red
 ## 🔭 OpenTelemetry Tracing & Observability
 AsyncPM includes built-in OpenTelemetry instrumentation (worker-python/telemetry.py).
 During execution, structured spans are emitted to console logs tracking:
-- ==POST /process-transcript== (HTTP Server Span)
-- ==run_adk_agent_pipeline== (Parent Span)
-- ==transfer_to_agent → TranscriptParserAgent== (Agent Delegation Span)
-- ==execute_tool create_jira_issue== (MCP Tool Execution Span)
-- Token consumption metrics (==gen_ai.usage.input_tokens==, ==gen_ai.usage.output_tokens==)
+- POST /process-transcript (HTTP Server Span)
+- run_adk_agent_pipeline (Parent Span)
+- transfer_to_agent → TranscriptParserAgent (Agent Delegation Span)
+- execute_tool create_jira_issue (MCP Tool Execution Span)
+- Token consumption metrics (gen_ai.usage.input_tokens, gen_ai.usage.output_tokens)
 
 *When deployed to Google Cloud Run, these spans render automatically as visual flame graphs in **Google Cloud Trace.***
 
