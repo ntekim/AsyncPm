@@ -3,6 +3,8 @@ import json
 
 DB_NAME = "local_asyncpm.db"
 
+STOP_WORDS = {"the", "a", "an", "for", "to", "of", "in", "on", "and", "or", "is", "are", "update", "fix", "add", "create", "new", "please", "our", "api"}
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -38,7 +40,7 @@ def save_ticket_memory(ticket_key: str, summary: str, meeting_id: str):
     conn.close()
 
 def search_past_tickets(query: str) -> list:
-    """Searches memory database for existing tickets matching key words to prevent duplicates."""
+    """Searches persistent memory for existing tickets matching meaningful keywords (ignoring stop-words)."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT ticket_key, summary, meeting_id FROM ticket_memory")
@@ -46,11 +48,13 @@ def search_past_tickets(query: str) -> list:
     conn.close()
 
     matches = []
-    query_words = set(query.lower().split())
+    # Strip common stop-words
+    query_words = set(query.lower().split()) - STOP_WORDS
+    
     for ticket_key, summary, meeting_id in rows:
-        summary_words = set(summary.lower().split())
-        # Check keyword overlap
-        if len(query_words.intersection(summary_words)) >= 2:
+        summary_words = set(summary.lower().split()) - STOP_WORDS
+        # Require at least 3 distinct meaningful keyword overlaps
+        if len(query_words.intersection(summary_words)) >= 3:
             matches.append({"ticket_key": ticket_key, "summary": summary, "meeting_id": meeting_id})
     return matches
 

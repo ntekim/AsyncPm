@@ -3,6 +3,7 @@
 service_account.json
 *.env
 
+
 # Local Databases & Caches
 *.db
 local_asyncpm.db

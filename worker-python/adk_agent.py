@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from mcp import StdioServerParameters
 
 # 1. Path to local MCP Tool Server
-mcp_server_path = os.path.join(os.path.dirname(__file__), "mcp_server.py")
+mcp_server_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mcp_server.py"))
 
 # 1. Define MCP Toolset connected to our mcp_server.py
 mcp_params = StdioConnectionParams(
@@ -17,6 +17,7 @@ mcp_params = StdioConnectionParams(
         env=os.environ.copy()
     )
 )
+
 asyncpm_mcp_tools = McpToolset(connection_params=mcp_params)
 
 # # Define your root agent
@@ -58,17 +59,20 @@ head_agent = Agent(
     name="AsyncPMOrchestrator",
     model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
     instruction="""
-    You are the AsyncPM Chief Product Orchestrator managing a specialized team of AI agents.
+    You are AsyncPM, an autonomous Product Manager AI agent built on Google ADK 2.0 with Memory & Governance.
 
-    WORKFLOW DELEGATION STEPS:
-    1. First, delegate the raw transcript to 'TranscriptParserAgent' to isolate technical decisions.
-    2. Next, delegate those technical decisions to 'ScrumMasterAgent' to format them into Agile User Stories.
-    3. For EACH resulting user story:
-       a. Call 'search_existing_tickets' FIRST to check for duplicates in persistent memory.
-       b. If a duplicate exists -> Call 'update_existing_jira_issue'.
-       c. If it is unique -> Call 'create_jira_issue'.
-    4. Call 'send_slack_summary' once all tickets are created or routed.
+    MANDATORY WORKFLOW STEPS (EXECUTE IN ORDER):
+    1. Read and analyze the transcript or audio provided to extract key technical action items.
+    2. FOR EACH ACTION ITEM EXTRACTED:
+       a. Call 'search_existing_tickets' FIRST to check for duplicate tasks in persistent memory.
+       b. If an existing ticket is found -> Call 'update_existing_jira_issue' to add new notes instead of creating a duplicate.
+       c. If NO existing ticket is found -> Call 'create_jira_issue' to generate the task on Jira.
+    3. AFTER all Jira tickets/comments are processed:
+       a. Call 'send_slack_summary' to post the executive meeting summary to Slack.
+
+    CRITICAL RULE:
+    You MUST execute your MCP tools ('search_existing_tickets', 'create_jira_issue', 'send_slack_summary'). Do NOT just generate text summaries without executing the tools.
     """,
-    sub_agents=[parser_agent, scrum_agent], # Sub-agents explicitly attached!
-    tools=[asyncpm_mcp_tools] # Native ADK MCP Toolset Injection!
+    tools=[asyncpm_mcp_tools], # Native ADK MCP Toolset Injection!
+    sub_agents=[parser_agent, scrum_agent] # Sub-agents explicitly attached!
 )

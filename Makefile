@@ -93,3 +93,12 @@ logs-ingress:
 set-gcp-project:
 	gcloud config set project $(PROJECT_ID)
 	gcloud config set run/region $(REGION)
+
+check-deadlines:
+	curl -X POST "http://localhost:8000/check-deadlines"
+
+release-notes:
+	curl -X POST "http://localhost:8000/generate-release-notes?sprint_name=Sprint%201"
+
+set-tunnel:
+	npx localtunnel --port 8000

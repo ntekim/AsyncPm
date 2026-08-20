@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import asyncio
@@ -41,11 +42,18 @@ async def run_adk_agent_pipeline(meeting_id: str, transcript: str):
 
         try:
             with tracer.start_as_current_span("adk_session_creation"):
-                session = await session_service.create_session(
-                    app_name="asyncpm_app",
-                    user_id="default_user",
-                    session_id=meeting_id
-                )
+                try:
+                    session = await session_service.create_session(
+                        app_name="asyncpm_app",
+                        user_id="default_user",
+                        session_id=meeting_id
+                    )
+                except Exception:
+                    session = await session_service.get_session(
+                        app_name="asyncpm_app",
+                        user_id="default_user",
+                        session_id=meeting_id
+                    )
 
             user_content = types.Content(
                 role="user",
@@ -208,3 +216,38 @@ async def slack_interactive_endpoint(request: Request):
                 })
 
     return {"status": "ok"}
+
+@app.post("/check-deadlines")
+def trigger_deadline_check():
+    from mcp_server import check_approaching_deadlines
+    result = check_approaching_deadlines(days_threshold=2)
+    return {"status": "success", "result": result}
+
+@app.post("/generate-release-notes")
+def trigger_release_notes(sprint_name: str = "Sprint 1"):
+    from mcp_server import generate_release_notes
+    result = generate_release_notes(sprint_name=sprint_name)
+    return {"status": "success", "result": result}
+
+@app.post("/slack/command")
+async def slack_slash_command_endpoint(request: Request, background_tasks: BackgroundTasks):
+    """Handles /asyncpm Slash Command directly from Slack."""
+    form_data = await request.form()
+    user_text = form_data.get("text", "")
+    user_name = form_data.get("user_name", "Slack User")
+    
+    if not user_text:
+        return {
+            "response_type": "ephemeral",
+            "text": "⚠️ *Please provide a transcript after `/asyncpm`.*\n*Example:* `/asyncpm Dave: Sarah, please update the SSL certificate. Priority is High.`"
+        }
+
+    # Safe timestamp ID generation
+    timestamp_id = int(datetime.now().timestamp())
+    meeting_id = f"SLACK-CMD-{timestamp_id}"
+    background_tasks.add_task(run_adk_agent_pipeline, meeting_id, user_text)
+    
+    return {
+        "response_type": "in_channel",
+        "text": f"🤖 *AsyncPM Agent Triggered by @{user_name}!*\n> _{user_text}_\n\n*Status:* Ingesting transcript and running ADK 2.0 multi-agent pipeline..."
+    }
