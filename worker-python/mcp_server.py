@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 from db import search_past_tickets, save_ticket_memory
 
 load_dotenv()
+# Sanitize critical environment variables
+for env_key in ["GEMINI_API_KEY", "JIRA_DOMAIN", "JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_PROJECT_KEY", "SLACK_WEBHOOK_URL"]:
+    val = os.getenv(env_key)
+    if val:
+        os.environ[env_key] = val.strip().replace("\r", "").replace("\n", "")
 
 mcp = FastMCP("AsyncPM Enterprise Tool Server")
 
@@ -319,5 +324,10 @@ def check_approaching_deadlines(days_threshold: int = 2) -> str:
     except Exception as e:
         return f"EXCEPTION: {str(e)}"
 
-if __name__ == "__main__":
-    mcp.run()
+# if __name__ == "__main__":
+#     # Get the port from environment, default to 8000
+#     port = int(os.environ.get("PORT", 8000))
+    
+#     # Switch from default stdio to SSE (HTTP)
+#     # This assumes you are using the 'mcp' python package
+#     mcp.run(transport="sse", host="0.0.0.0", port=port)

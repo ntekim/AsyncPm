@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import asyncio
 import json
 import requests
-from fastapi import FastAPI, Request, BackgroundTasks, File, UploadFile
+from fastapi import FastAPI, Request, BackgroundTasks, File, UploadFile, Form
 from dotenv import load_dotenv
 
 from google.genai import types
@@ -19,6 +19,12 @@ from db import init_db, save_meeting_log
 from telemetry import init_telemetry, tracer
 
 load_dotenv()
+# Sanitize critical environment variables to remove hidden newlines or control characters
+for env_key in ["GEMINI_API_KEY", "JIRA_DOMAIN", "JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_PROJECT_KEY", "SLACK_WEBHOOK_URL"]:
+    val = os.getenv(env_key)
+    if val:
+        os.environ[env_key] = val.strip().replace("\r", "").replace("\n", "")
+        
 init_db()
 
 app = FastAPI(title="AsyncPM Enterprise Agent (ADK 2.0 + MCP + Multimodal)")
@@ -49,10 +55,24 @@ async def run_adk_agent_pipeline(meeting_id: str, transcript: str):
                         session_id=meeting_id
                     )
                 except Exception:
-                    session = await session_service.get_session(
+                    session = None
+
+                if not session:
+                    try:
+                        session = await session_service.get_session(
+                            app_name="asyncpm_app",
+                            user_id="default_user",
+                            session_id=meeting_id
+                        )
+                    except Exception:
+                        pass
+                
+                # Ultimate fallback if in-memory session service acts up
+                if not session:
+                    session = await session_service.create_session(
                         app_name="asyncpm_app",
                         user_id="default_user",
-                        session_id=meeting_id
+                        session_id=f"fallback-{datetime.now().timestamp()}"
                     )
 
             user_content = types.Content(
@@ -94,11 +114,32 @@ async def run_audio_agent_pipeline(meeting_id: str, audio_bytes: bytes, mime_typ
 
         try:
             with tracer.start_as_current_span("adk_session_creation"):
-                session = await session_service.create_session(
-                    app_name="asyncpm_app",
-                    user_id="default_user",
-                    session_id=meeting_id
-                )
+                try:
+                    session = await session_service.create_session(
+                        app_name="asyncpm_app",
+                        user_id="default_user",
+                        session_id=meeting_id
+                    )
+                except Exception:
+                    session = None
+
+                if not session:
+                    try:
+                        session = await session_service.get_session(
+                            app_name="asyncpm_app",
+                            user_id="default_user",
+                            session_id=meeting_id
+                        )
+                    except Exception:
+                        pass
+                
+                # Ultimate fallback if in-memory session service acts up
+                if not session:
+                    session = await session_service.create_session(
+                        app_name="asyncpm_app",
+                        user_id="default_user",
+                        session_id=f"fallback-{datetime.now().timestamp()}"
+                    )
 
             audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
             instruction_part = types.Part.from_text(text=f"Listen to this meeting recording (ID: {meeting_id}). Extract action items, search past memory for duplicates, and execute Jira/Slack tool calls.")
@@ -251,3 +292,36 @@ async def slack_slash_command_endpoint(request: Request, background_tasks: Backg
         "response_type": "in_channel",
         "text": f"🤖 *AsyncPM Agent Triggered by @{user_name}!*\n> _{user_text}_\n\n*Status:* Ingesting transcript and running ADK 2.0 multi-agent pipeline..."
     }
+
+from typing import Optional
+
+@app.post("/process-universal")
+async def process_universal_endpoint(
+    background_tasks: BackgroundTasks,
+    meeting_id: str = Form("UNIV-001"),
+    transcript: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None)
+):
+    """
+    Handles BOTH text inputs and audio file uploads in a single endpoint.
+    """
+    if file:
+        audio_bytes = await file.read()
+        mime_type = file.content_type or "audio/mp3"
+        background_tasks.add_task(run_audio_agent_pipeline, meeting_id, audio_bytes, mime_type)
+        input_type = "Audio File"
+    elif transcript:
+        background_tasks.add_task(run_adk_agent_pipeline, meeting_id, transcript)
+        input_type = "Text Transcript"
+    else:
+        return {"error": "Provide either 'transcript' text or an audio 'file'."}, 400
+
+    return {
+        "status": "accepted",
+        "message": f"Successfully ingested {input_type} for meeting {meeting_id}.",
+        "meeting_id": meeting_id
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)

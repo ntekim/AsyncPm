@@ -1,9 +1,10 @@
 .PHONY: help dev-python dev-go drive-watcher docker-up docker-down test-transcript test-audio deploy-worker deploy-ingress deploy-all logs-worker logs-ingress
 
 # Project & Virtual Environment Configuration
-PROJECT_ID ?= asyncpm-agentic-2026
+PROJECT_ID ?= asynpm
 REGION ?= us-central1
-PYTHON_WORKER_URL ?= https://asyncpm-worker-uc.a.run.app/process-transcript
+PYTHON_WORKER_URL ?= http://localhost:8000
+GO_INGRESS_URL ?= https://asyncpm-ingress-600733122592.us-central1.run.app
 
 VENV ?= $(HOME)/Desktop/venv
 PYTHON ?= $(VENV)/bin/python
@@ -14,6 +15,7 @@ help:
 	@echo "AsyncPM - Autonomous Product Manager Agent (Google ADK 2.0 + MCP)"
 	@echo "======================================================================="
 	@echo "Local Development:"
+	@echo "  make dev-all          🚀 Start ALL 3 services concurrently (Python + Go + Drive Watcher)"
 	@echo "  make dev-python       Start Python ADK Worker locally (port 8000)"
 	@echo "  make dev-go           Start Go Ingress Server locally (port 8080)"
 	@echo "  make drive-watcher    Start Google Drive Watcher service"
@@ -35,6 +37,15 @@ help:
 	@echo "======================================================================="
 
 # --- LOCAL DEVELOPMENT ---
+# ---🚀 ALL-IN-ONE LOCAL STACK ---
+dev-all:
+	@echo "🚀 Starting AsyncPM All-In-One Local Stack (Python + Go + Drive Watcher)..."
+	@trap 'kill 0' EXIT; \
+	(cd worker-python && uvicorn main:app --reload --port 8000) & \
+	(cd ingress-go && go run main.go) & \
+	(cd worker-python && python drive_watcher.py) & \
+	wait
+
 dev-python:
 	cd worker-python && $(UVICORN) main:app --reload --port 8000
 
@@ -58,7 +69,7 @@ test-transcript:
 		-d '{"meeting_id": "MAKE-TEST-001", "source": "local_make", "transcript": "Dave: Sarah, please update the SSL certificate on Google Cloud Load Balancer. Priority is High."}'
 
 test-audio:
-	curl -X POST "http://localhost:8000/process-audio?meeting_id=MAKE-AUDIO-001" \
+	curl -X POST "$(PYTHON_WORKER_URL)/process-audio?meeting_id=MAKE-AUDIO-001" \
 		-F "file=@sample_meeting.mp3"
 
 # --- GCP CLOUD RUN DEPLOYMENT ---
@@ -80,7 +91,7 @@ deploy-ingress:
 		--allow-unauthenticated \
 		--min-instances 0 \
 		--max-instances 2 \
-		--set-env-vars PYTHON_WORKER_URL="$(PYTHON_WORKER_URL)"
+		--set-env-vars PYTHON_WORKER_URL="$(PYTHON_WORKER_URL)/process-transcript"
 
 deploy-all: deploy-worker deploy-ingress
 
@@ -95,10 +106,10 @@ set-gcp-project:
 	gcloud config set run/region $(REGION)
 
 check-deadlines:
-	curl -X POST "http://localhost:8000/check-deadlines"
+	curl -X POST "$(PYTHON_WORKER_URL)/check-deadlines"
 
 release-notes:
-	curl -X POST "http://localhost:8000/generate-release-notes?sprint_name=Sprint%201"
+	curl -X POST "$(PYTHON_WORKER_URL)/generate-release-notes?sprint_name=Sprint%201"
 
 set-tunnel:
 	npx localtunnel --port 8000

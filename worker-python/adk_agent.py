@@ -1,24 +1,40 @@
 import os
 import sys
 from google.adk.agents import Agent
-from google.adk.tools import McpToolset
-from google.adk.tools.mcp_tool import StdioConnectionParams
-from pydantic import BaseModel, Field
-from mcp import StdioServerParameters
-
-# 1. Path to local MCP Tool Server
-mcp_server_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mcp_server.py"))
-
-# 1. Define MCP Toolset connected to our mcp_server.py
-mcp_params = StdioConnectionParams(
-    server_params=StdioServerParameters(
-        command=sys.executable,
-        args=[mcp_server_path],
-        env=os.environ.copy()
-    )
+# from google.adk.tools import McpToolset
+# from google.adk.tools.mcp_tool import StdioConnectionParams
+# from pydantic import BaseModel, Field
+# from mcp import StdioServerParameters
+from mcp_server import (
+    search_existing_tickets,
+    update_existing_jira_issue,
+    create_jira_issue,
+    send_slack_summary,
+    check_approaching_deadlines,
+    generate_release_notes
 )
 
-asyncpm_mcp_tools = McpToolset(connection_params=mcp_params)
+# 1. Path to local MCP Tool Server
+# mcp_server_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mcp_server.py"))
+
+# # 1. Define MCP Toolset connected to our mcp_server.py
+# mcp_params = StdioConnectionParams(
+#     server_params=StdioServerParameters(
+#         command=sys.executable,
+#         args=[mcp_server_path],
+#         env=os.environ.copy()
+#     )
+# )
+
+# 2. Define the tools list directly without the broken Stdio subprocess wrapper
+asyncpm_tools = [
+    search_existing_tickets,
+    update_existing_jira_issue,
+    create_jira_issue,
+    send_slack_summary,
+    check_approaching_deadlines,
+    generate_release_notes
+]
 
 # # Define your root agent
 # root_agent = Agent(
@@ -61,18 +77,18 @@ head_agent = Agent(
     instruction="""
     You are AsyncPM, an autonomous Product Manager AI agent built on Google ADK 2.0 with Memory & Governance.
 
-    MANDATORY WORKFLOW STEPS (EXECUTE IN ORDER):
-    1. Read and analyze the transcript or audio provided to extract key technical action items.
-    2. FOR EACH ACTION ITEM EXTRACTED:
-       a. Call 'search_existing_tickets' FIRST to check for duplicate tasks in persistent memory.
-       b. If an existing ticket is found -> Call 'update_existing_jira_issue' to add new notes instead of creating a duplicate.
-       c. If NO existing ticket is found -> Call 'create_jira_issue' to generate the task on Jira.
-    3. AFTER all Jira tickets/comments are processed:
-       a. Call 'send_slack_summary' to post the executive meeting summary to Slack.
+    STRICT OPERATIONAL DIRECTIVE:
+    You are an agent with ACTIVE execution tools. Do NOT act as a passive chatbot. You must invoke your tools directly.
 
-    CRITICAL RULE:
-    You MUST execute your MCP tools ('search_existing_tickets', 'create_jira_issue', 'send_slack_summary'). Do NOT just generate text summaries without executing the tools.
+    STEP-BY-STEP EXECUTION:
+    1. Parse the provided transcript or audio to identify distinct tasks and their priorities.
+    2. For EVERY task found:
+       - You MUST call the tool: search_existing_tickets(task_description="...")
+       - Based on the result, you MUST call the tool: create_jira_issue(summary="...", description="...", priority="...")
+    3. Once all tasks are handled, you MUST call the tool: send_slack_summary(meeting_title="...", summary="...", created_tickets="...")
+
+    EXECUTE THE TOOLS NOW.
     """,
-    tools=[asyncpm_mcp_tools], # Native ADK MCP Toolset Injection!
-    sub_agents=[parser_agent, scrum_agent] # Sub-agents explicitly attached!
+    tools=asyncpm_tools,
+    sub_agents=[parser_agent, scrum_agent]
 )

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -32,8 +33,12 @@ func main() {
 
 	http.HandleFunc("/webhook", handleWebhook)
 	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/googledfdf1e942949454b.html", func(w http.ResponseWriter, r *http.Request) {
+		// The content inside the file is usually "google-site-verification: [filename].html"
+		fmt.Fprintf(w, "google-site-verification: googledfdf1e942949454b.html")
+	})
 
-	log.Printf("🚀 AsyncPM Go Ingress running on http://localhost:%s", port)
+	log.Printf("🚀 AsyncPM Go Ingress running on http://0.0.0.0:%s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("❌ Server failed: %v", err)
 	}

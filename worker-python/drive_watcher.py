@@ -12,7 +12,7 @@ load_dotenv()
 # Configuration
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(__file__), "anthronomic-386bc9b08b38_service_account.json")
 DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
-WORKER_URL = "http://localhost:8000"
+WORKER_URL = "https://asyncpm-worker-600733122592.us-central1.run.app"
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
@@ -61,21 +61,28 @@ def watch_drive_folder():
 
                 # Dispatch to Audio or Text pipeline based on extension/mime
                 if file_name.endswith(('.mp3', '.m4a', '.wav')) or 'audio' in mime_type:
-                    files = {'file': (file_name, file_bytes, mime_type)}
-                    res = requests.post(f"{WORKER_URL}/process-audio?meeting_id=DRIVE-{file_name}", files=files)
-                    print(f"  ✅ Sent audio file to AsyncPM worker: {res.json().get('message')}")
-
+                        files = {'file': (file_name, file_bytes, mime_type)}
+                        print(f"  🚀 Forwarding audio to {WORKER_URL}/process-universal...")
+                        res = requests.post(f"{WORKER_URL}/process-universal?meeting_id=DRIVE-{file_name}", files=files)
+                        
                 elif file_name.endswith(('.txt', '.vtt', '.json')) or 'text' in mime_type or 'plain' in mime_type:
                     text_content = file_bytes.decode('utf-8', errors='ignore')
                     payload = {"meeting_id": f"DRIVE-{file_name}", "transcript": text_content, "source": "google_drive"}
-                    res = requests.post(f"{WORKER_URL}/process-transcript", json=payload)
-                    print(f"  ✅ Sent text transcript to AsyncPM worker: {res.json().get('message')}")
+                    print(f"  🚀 Forwarding transcript to {WORKER_URL}/process-universal...")
+                    res = requests.post(f"{WORKER_URL}/process-universal", json=payload)
 
-                # Mark as processed
-                processed_file_ids.add(file_id)
+                # Check if server replied with success or error text
+                if res.status_code == 200:
+                    try:
+                        msg = res.json().get('message', 'Done')
+                        print(f"  ✅ Success: {msg}")
+                    except:
+                        print(f"  ✅ Success (Non-JSON response): {res.text}")
+                else:
+                    print(f"  ❌ Worker returned Status {res.status_code}: {res.text}")
 
-        except Exception as e:
-            print(f"❌ [Drive Watcher Error] {str(e)}")
+        except requests.exceptions.RequestException as req_err:
+                print(f"  ❌ HTTP Request failed: {req_err}")
 
         time.sleep(5)  # Check every 5 seconds
 

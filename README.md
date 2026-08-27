@@ -112,6 +112,9 @@ JIRA_PROJECT_KEY=SCRUM
 
 # Slack Integration
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T0000/B0000/XXXXX
+SLACK_WEBHOOK_MEETINGS=""
+SLACK_WEBHOOK_GOVERNANCE=""
+SLACK_WEBHOOK_DEADLINES=""
 
 # Google Drive Folder Watcher (Optional)
 GOOGLE_DRIVE_FOLDER_ID=your_drive_folder_id
