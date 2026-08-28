@@ -79,9 +79,10 @@ deploy-worker:
 		--platform managed \
 		--region $(REGION) \
 		--allow-unauthenticated \
+		--no-cpu-throttling \
 		--min-instances 0 \
 		--max-instances 2 \
-		--set-env-vars GEMINI_API_KEY="$$(grep GEMINI_API_KEY .env | cut -d '=' -f2)",JIRA_DOMAIN="$$(grep JIRA_DOMAIN .env | cut -d '=' -f2)",JIRA_EMAIL="$$(grep JIRA_EMAIL .env | cut -d '=' -f2)",JIRA_API_TOKEN="$$(grep JIRA_API_TOKEN .env | cut -d '=' -f2)",JIRA_PROJECT_KEY="$$(grep JIRA_PROJECT_KEY .env | cut -d '=' -f2)",SLACK_WEBHOOK_URL="$$(grep SLACK_WEBHOOK_URL .env | cut -d '=' -f2)"
+		--set-env-vars GEMINI_API_KEY="$$(grep GEMINI_API_KEY .env | cut -d '=' -f2)",JIRA_DOMAIN="$$(grep JIRA_DOMAIN .env | cut -d '=' -f2)",JIRA_EMAIL="$$(grep JIRA_EMAIL .env | cut -d '=' -f2)",JIRA_API_TOKEN="$$(grep JIRA_API_TOKEN .env | cut -d '=' -f2)",JIRA_PROJECT_KEY="$$(grep JIRA_PROJECT_KEY .env | cut -d '=' -f2)",SLACK_WEBHOOK_URL="$$(grep SLACK_WEBHOOK_URL .env | cut -d '=' -f2)",SLACK_WEBHOOK_MEETINGS="$$(grep SLACK_WEBHOOK_MEETINGS .env | cut -d '=' -f2)",SLACK_WEBHOOK_GOVERNANCE="$$(grep SLACK_WEBHOOK_GOVERNANCE .env | cut -d '=' -f2)",SLACK_WEBHOOK_DEADLINES="$$(grep SLACK_WEBHOOK_DEADLINES .env | cut -d '=' -f2)"
 
 deploy-ingress:
 	cd ingress-go && gcloud run deploy asyncpm-ingress \

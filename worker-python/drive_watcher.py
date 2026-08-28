@@ -16,15 +16,15 @@ WORKER_URL = "https://asyncpm-worker-600733122592.us-central1.run.app"
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-def get_drive_service():
+async def get_drive_service():
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
         print(f"⚠️ [Drive Watcher] anthronomic-386bc9b08b38_service_account.json missing in worker-python! Place it at: {SERVICE_ACCOUNT_FILE}")
         return None
     creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     return build('drive', 'v3', credentials=creds)
 
-def watch_drive_folder():
-    service = get_drive_service()
+async def watch_drive_folder():
+    service = await get_drive_service()
     if not service or not DRIVE_FOLDER_ID:
         print("⚠️ [Drive Watcher] Missing SERVICE_ACCOUNT_FILE or GOOGLE_DRIVE_FOLDER_ID in .env")
         return
@@ -63,13 +63,13 @@ def watch_drive_folder():
                 if file_name.endswith(('.mp3', '.m4a', '.wav')) or 'audio' in mime_type:
                         files = {'file': (file_name, file_bytes, mime_type)}
                         print(f"  🚀 Forwarding audio to {WORKER_URL}/process-universal...")
-                        res = requests.post(f"{WORKER_URL}/process-universal?meeting_id=DRIVE-{file_name}", files=files)
+                        res = await requests.post(f"{WORKER_URL}/process-universal?meeting_id=DRIVE-{file_name}", files=files)
                         
                 elif file_name.endswith(('.txt', '.vtt', '.json')) or 'text' in mime_type or 'plain' in mime_type:
                     text_content = file_bytes.decode('utf-8', errors='ignore')
                     payload = {"meeting_id": f"DRIVE-{file_name}", "transcript": text_content, "source": "google_drive"}
                     print(f"  🚀 Forwarding transcript to {WORKER_URL}/process-universal...")
-                    res = requests.post(f"{WORKER_URL}/process-universal", json=payload)
+                    res = await requests.post(f"{WORKER_URL}/process-universal", json=payload)
 
                 # Check if server replied with success or error text
                 if res.status_code == 200:
