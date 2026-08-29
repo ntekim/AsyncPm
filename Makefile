@@ -3,7 +3,7 @@
 # Project & Virtual Environment Configuration
 PROJECT_ID ?= asynpm
 REGION ?= us-central1
-PYTHON_WORKER_URL ?= http://localhost:8000
+PYTHON_WORKER_URL ?= https://asyncpm-worker-600733122592.us-central1.run.app
 GO_INGRESS_URL ?= https://asyncpm-ingress-600733122592.us-central1.run.app
 
 VENV ?= $(HOME)/Desktop/venv

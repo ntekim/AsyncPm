@@ -16,15 +16,15 @@ WORKER_URL = "https://asyncpm-worker-600733122592.us-central1.run.app"
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-async def get_drive_service():
+def get_drive_service():
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
         print(f"⚠️ [Drive Watcher] anthronomic-386bc9b08b38_service_account.json missing in worker-python! Place it at: {SERVICE_ACCOUNT_FILE}")
         return None
     creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     return build('drive', 'v3', credentials=creds)
 
-async def watch_drive_folder():
-    service = await get_drive_service()
+def watch_drive_folder():
+    service = get_drive_service()
     if not service or not DRIVE_FOLDER_ID:
         print("⚠️ [Drive Watcher] Missing SERVICE_ACCOUNT_FILE or GOOGLE_DRIVE_FOLDER_ID in .env")
         return
@@ -62,14 +62,14 @@ async def watch_drive_folder():
                 # Dispatch to Audio or Text pipeline based on extension/mime
                 if file_name.endswith(('.mp3', '.m4a', '.wav')) or 'audio' in mime_type:
                         files = {'file': (file_name, file_bytes, mime_type)}
-                        print(f"  🚀 Forwarding audio to {WORKER_URL}/process-universal...")
-                        res = await requests.post(f"{WORKER_URL}/process-universal?meeting_id=DRIVE-{file_name}", files=files)
+                        print(f"  🚀 Forwarding audio to {WORKER_URL}/process-audio...")
+                        res = requests.post(f"{WORKER_URL}/process-audio?meeting_id=DRIVE-{file_name}", files=files)
                         
                 elif file_name.endswith(('.txt', '.vtt', '.json')) or 'text' in mime_type or 'plain' in mime_type:
                     text_content = file_bytes.decode('utf-8', errors='ignore')
                     payload = {"meeting_id": f"DRIVE-{file_name}", "transcript": text_content, "source": "google_drive"}
-                    print(f"  🚀 Forwarding transcript to {WORKER_URL}/process-universal...")
-                    res = await requests.post(f"{WORKER_URL}/process-universal", json=payload)
+                    print(f"  🚀 Forwarding transcript to {WORKER_URL}/process-transcript...")
+                    res = requests.post(f"{WORKER_URL}/process-transcript", json=payload)
 
                 # Check if server replied with success or error text
                 if res.status_code == 200:
@@ -82,7 +82,10 @@ async def watch_drive_folder():
                     print(f"  ❌ Worker returned Status {res.status_code}: {res.text}")
 
         except requests.exceptions.RequestException as req_err:
-                print(f"  ❌ HTTP Request failed: {req_err}")
+            print(f"  ❌ HTTP Request failed: {req_err}")
+        except Exception as e:
+            print(f"  ❌ Error while processing Google Drive files: {str(e)}")
+            raise e  # Re-raise to allow external monitoring/logging if needed
 
         time.sleep(5)  # Check every 5 seconds
 

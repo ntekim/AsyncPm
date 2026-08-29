@@ -101,8 +101,20 @@ async def run_audio_agent_pipeline(meeting_id: str, audio_bytes: bytes, mime_typ
                     session_id=unique_session_id
                 )
 
+            # Pass raw audio bytes to Gemini
             audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-            instruction_part = types.Part.from_text(text=f"Listen to this meeting recording (ID: {meeting_id}). Extract action items, search past memory for duplicates, and execute Jira/Slack tool calls.")
+            
+            # Explicit Prompt forcing Gemini to execute head_agent's tools
+            prompt_text = (
+                f"Meeting ID: {meeting_id}\n\n"
+                f"Analyze this meeting audio recording. "
+                f"1. Extract all technical action items.\n"
+                f"2. For each task, call 'search_existing_tickets' FIRST to check for duplicates in persistent memory.\n"
+                f"3. If unique, call 'create_jira_issue'. If duplicate, call 'update_existing_jira_issue'.\n"
+                f"4. Call 'send_slack_summary' to post the report to Slack.\n\n"
+                f"CRITICAL: You MUST execute your tools ('search_existing_tickets', 'create_jira_issue', 'send_slack_summary'). Do NOT just generate plain text without calling tools."
+            )
+            instruction_part = types.Part.from_text(text=prompt_text)
 
             user_content = types.Content(
                 role="user",
