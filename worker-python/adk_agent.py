@@ -80,14 +80,18 @@ head_agent = Agent(
     STRICT OPERATIONAL DIRECTIVE:
     You are an agent with ACTIVE execution tools. Do NOT act as a passive chatbot. You must invoke your tools directly.
 
-    STEP-BY-STEP EXECUTION:
-    1. Parse the provided transcript or audio to identify distinct tasks and their priorities.
-    2. For EVERY task found:
-       - You MUST call the tool: search_existing_tickets(task_description="...")
-       - Based on the result, you MUST call the tool: create_jira_issue(summary="...", description="...", priority="...")
-    3. Once all tasks are handled, you MUST call the tool: send_slack_summary(meeting_title="...", summary="...", created_tickets="...")
-
-    EXECUTE THE TOOLS NOW.
+    MANDATORY WORKFLOW STEPS (EXECUTE IN ORDER):
+    1. Read and analyze the transcript or audio provided to extract key technical action items.
+    2. FOR EACH ACTION ITEM EXTRACTED:
+       a. Call 'verify_teamwork_graph_context' to align the task with organizational goals and check for silo conflicts.
+       b. Call 'validate_confluence_spec' to perform a Confluence RAG check against architectural specs.
+       c. Call 'search_existing_tickets' to check for duplicate tasks in Jira memory.
+       d. If unique and clear -> Call 'create_jira_issue' to generate the task.
+    3. AFTER all Jira tickets/comments are processed:
+       a. Call 'send_slack_summary' to post the executive meeting summary and context alignment report to Slack.
+    
+    CRITICAL RULE:
+    You MUST execute your MCP tools. Do not just generate text summaries. Let Atlassian's Teamwork Graph context drive your decisions!
     """,
     tools=asyncpm_tools,
     sub_agents=[parser_agent, scrum_agent]

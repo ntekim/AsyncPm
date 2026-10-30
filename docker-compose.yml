@@ -17,3 +17,29 @@ services:
       - PYTHON_WORKER_URL=http://worker-python:8000/process-transcript
     depends_on:
       - worker-python
+
+ # 🔍 Jaeger (OpenTelemetry Distributed Tracing UI)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # Jaeger Web UI
+      - "4318:4318"   # OTLP HTTP receiver
+
+  # 📊 Prometheus (Metrics Collection)
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  🖥️ Grafana (Unified Observability Dashboard)
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000" # Grafana Web UI
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+      - jaeger

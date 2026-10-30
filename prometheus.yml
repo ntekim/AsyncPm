@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'asyncpm-worker'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['worker-python:8000']

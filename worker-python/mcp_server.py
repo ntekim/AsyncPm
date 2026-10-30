@@ -8,6 +8,7 @@ from fastmcp import FastMCP
 from dotenv import load_dotenv
 
 from db import search_past_tickets, save_ticket_memory
+from atlassian_context import query_teamwork_graph_goals, search_confluence_decisions
 
 load_dotenv()
 # Sanitize critical environment variables
@@ -323,6 +324,28 @@ def check_approaching_deadlines(days_threshold: int = 2) -> str:
         return f"ERROR: Jira Search failed (Status {res.status_code}): {res.text}"
     except Exception as e:
         return f"EXCEPTION: {str(e)}"
+
+@mcp.tool()
+def verify_teamwork_graph_context(task_summary: str) -> str:
+    """
+    [PR #1] Queries Atlassian Teamwork Graph to align tasks with organizational goals
+    and catch cross-team silos before ticket generation.
+    """
+    print(f"\n🧬 [TEAMWORK GRAPH] Analyzing context for: '{task_summary}'", file=sys.stderr, flush=True)
+    project_key = os.getenv("JIRA_PROJECT_KEY", "SCRUM")
+    context_result = query_teamwork_graph_goals(project_key, task_summary)
+    return context_result
+
+
+@mcp.tool()
+def validate_confluence_spec(task_summary: str) -> str:
+    """
+    [PR #2] Performs a Confluence RAG check to ensure new tasks align with 
+    documented company decisions and technical specs.
+    """
+    print(f"\n📚 [CONFLUENCE RAG] Validating specs against Confluence for: '{task_summary}'", file=sys.stderr, flush=True)
+    spec_result = search_confluence_decisions(task_summary)
+    return spec_result
 
 if __name__ == "__main__":
     mcp.run()

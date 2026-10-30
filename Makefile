@@ -52,6 +52,9 @@ dev-python:
 dev-go:
 	cd ingress-go && go run main.go
 
+dev-obs:
+	docker compose -f docker-compose.yml up --build
+
 drive-watcher:
 	cd worker-python && $(PYTHON) drive_watcher.py
 

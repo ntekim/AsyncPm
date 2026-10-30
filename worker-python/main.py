@@ -18,6 +18,10 @@ from adk_agent import head_agent
 from db import init_db, save_meeting_log
 from telemetry import init_telemetry, tracer
 
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from prometheus_fastapi_instrumentator import Instrumentator
+
 load_dotenv()
 # Sanitize critical environment variables to remove hidden newlines or control characters
 for env_key in ["GEMINI_API_KEY", "JIRA_DOMAIN", "JIRA_EMAIL", "JIRA_API_TOKEN", "JIRA_PROJECT_KEY", "SLACK_WEBHOOK_URL"]:
@@ -27,7 +31,22 @@ for env_key in ["GEMINI_API_KEY", "JIRA_DOMAIN", "JIRA_EMAIL", "JIRA_API_TOKEN",
 
 init_db()
 
+# Initialize Sentry Error Tracking
+sentry_dsn = os.getenv("SENTRY_DSN")
+if sentry_dsn:
+    sentry_sdk.init(
+        dsn=sentry_dsn,
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=1.0,
+        environment="production" if os.getenv("K_SERVICE") else "development"
+    )
+    print("🚨 [Sentry] Real-time error tracking initialized.")
+
 app = FastAPI(title="AsyncPM Enterprise Agent (ADK 2.0 + MCP + Multimodal)")
+# Expose Prometheus /metrics endpoint automatically
+Instrumentator().instrument(app).expose(app)
+print("📊 [Prometheus] Metrics endpoint exposed at /metrics.")
+
 init_telemetry(app)
 
 session_service = InMemorySessionService()
