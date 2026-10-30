@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from db import search_past_tickets, save_ticket_memory
 from atlassian_context import query_teamwork_graph_goals, search_confluence_decisions
+from advanced_pm_sentinel import detect_circular_dependencies, trace_root_cause_and_regression
 
 load_dotenv()
 # Sanitize critical environment variables
@@ -346,6 +347,17 @@ def validate_confluence_spec(task_summary: str) -> str:
     print(f"\n📚 [CONFLUENCE RAG] Validating specs against Confluence for: '{task_summary}'", file=sys.stderr, flush=True)
     spec_result = search_confluence_decisions(task_summary)
     return spec_result
+
+@mcp.tool()
+def check_circular_dependencies(task_summary: str) -> str:
+    """[Advanced] Scans the Teamwork Graph for circular dependency deadlocks between tasks."""
+    project_key = os.getenv("JIRA_PROJECT_KEY", "SCRUM")
+    return detect_circular_dependencies(project_key, task_summary)
+
+@mcp.tool()
+def trace_bug_root_cause(task_description: str) -> str:
+    """[Advanced] Traces recent Git/Bitbucket commit history and Jira logs to locate bug root-causes."""
+    return trace_root_cause_and_regression(task_description)
 
 if __name__ == "__main__":
     mcp.run()
