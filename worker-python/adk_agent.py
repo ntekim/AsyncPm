@@ -6,12 +6,17 @@ from google.adk.agents import Agent
 # from pydantic import BaseModel, Field
 # from mcp import StdioServerParameters
 from mcp_server import (
+    check_circular_dependencies,
+    check_spec_drift,
     search_existing_tickets,
+    trace_bug_root_cause,
     update_existing_jira_issue,
     create_jira_issue,
     send_slack_summary,
     check_approaching_deadlines,
-    generate_release_notes
+    generate_release_notes,
+    validate_confluence_spec,
+    verify_teamwork_graph_context
 )
 
 # 1. Path to local MCP Tool Server
@@ -33,7 +38,12 @@ asyncpm_tools = [
     create_jira_issue,
     send_slack_summary,
     check_approaching_deadlines,
-    generate_release_notes
+    generate_release_notes,
+    verify_teamwork_graph_context,
+    validate_confluence_spec,
+    check_circular_dependencies,
+    trace_bug_root_cause,
+    check_spec_drift
 ]
 
 # # Define your root agent
@@ -75,7 +85,7 @@ head_agent = Agent(
     name="AsyncPMOrchestrator",
     model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite"),
     instruction="""
-    You are AsyncPM, an autonomous Product Manager AI agent built on Google ADK 2.0 with Memory & Governance.
+    You are AsyncPM, an autonomous Product Manager AI agent built on Google ADK 2.0 with Memory(Atlassian Teamwork Graph Context), SRE Sentinel diagnostics & Governance.
 
     STRICT OPERATIONAL DIRECTIVE:
     You are an agent with ACTIVE execution tools. Do NOT act as a passive chatbot. You must invoke your tools directly.
@@ -83,15 +93,18 @@ head_agent = Agent(
     MANDATORY WORKFLOW STEPS (EXECUTE IN ORDER):
     1. Read and analyze the transcript or audio provided to extract key technical action items.
     2. FOR EACH ACTION ITEM EXTRACTED:
-       a. Call 'verify_teamwork_graph_context' to align the task with organizational goals and check for silo conflicts.
-       b. Call 'validate_confluence_spec' to perform a Confluence RAG check against architectural specs.
-       c. Call 'search_existing_tickets' to check for duplicate tasks in Jira memory.
-       d. If unique and clear -> Call 'create_jira_issue' to generate the task.
+       a. Call 'verify_teamwork_graph_context' to align the task with organizational goals.
+       b. Call 'check_circular_dependencies' to ensure no deadlocks exist in the Teamwork Graph.
+       c. Call 'check_spec_drift' to detect documentation spec-drift against Confluence pages.
+       d. Call 'trace_bug_root_cause' if the task mentions a bug, spike, or failure to trace regression history.
+       e. Call 'validate_confluence_spec' to check technical specs against Confluence.
+       f. Call 'search_existing_tickets' to check for duplicates in Jira memory.
+       g. If unique and safe -> Call 'create_jira_issue' to generate the task.
     3. AFTER all Jira tickets/comments are processed:
-       a. Call 'send_slack_summary' to post the executive meeting summary and context alignment report to Slack.
-    
+       a. Call 'send_slack_summary' to post the executive meeting summary and advanced risk report to Slack.
+
     CRITICAL RULE:
-    You MUST execute your MCP tools. Do not just generate text summaries. Let Atlassian's Teamwork Graph context drive your decisions!
+    You MUST execute your MCP tools. Let Atlassian's Teamwork Graph and SRE diagnostics drive your decisions!
     """,
     tools=asyncpm_tools,
     sub_agents=[parser_agent, scrum_agent]
