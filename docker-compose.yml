@@ -33,7 +33,7 @@ services:
     ports:
       - "9090:9090"
 
-  🖥️ Grafana (Unified Observability Dashboard)
+  # 🖥️ Grafana (Unified Observability Dashboard)
   grafana:
     image: grafana/grafana:latest
     ports:
