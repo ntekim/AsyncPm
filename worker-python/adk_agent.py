@@ -6,12 +6,17 @@ from google.adk.agents import Agent
 # from pydantic import BaseModel, Field
 # from mcp import StdioServerParameters
 from mcp_server import (
+    check_circular_dependencies,
+    check_spec_drift,
     search_existing_tickets,
+    trace_bug_root_cause,
     update_existing_jira_issue,
     create_jira_issue,
     send_slack_summary,
     check_approaching_deadlines,
-    generate_release_notes
+    generate_release_notes,
+    validate_confluence_spec,
+    verify_teamwork_graph_context
 )
 
 # 1. Path to local MCP Tool Server
@@ -33,7 +38,12 @@ asyncpm_tools = [
     create_jira_issue,
     send_slack_summary,
     check_approaching_deadlines,
-    generate_release_notes
+    generate_release_notes,
+    verify_teamwork_graph_context,
+    validate_confluence_spec,
+    check_circular_dependencies,
+    trace_bug_root_cause,
+    check_spec_drift
 ]
 
 # # Define your root agent
@@ -85,10 +95,11 @@ head_agent = Agent(
     2. FOR EACH ACTION ITEM EXTRACTED:
        a. Call 'verify_teamwork_graph_context' to align the task with organizational goals.
        b. Call 'check_circular_dependencies' to ensure no deadlocks exist in the Teamwork Graph.
-       c. Call 'trace_bug_root_cause' if the task mentions a bug, spike, or failure to trace regression history.
-       d. Call 'validate_confluence_spec' to check technical specs against Confluence.
-       e. Call 'search_existing_tickets' to check for duplicates in Jira memory.
-       f. If unique and safe -> Call 'create_jira_issue' to generate the task.
+       c. Call 'check_spec_drift' to detect documentation spec-drift against Confluence pages.
+       d. Call 'trace_bug_root_cause' if the task mentions a bug, spike, or failure to trace regression history.
+       e. Call 'validate_confluence_spec' to check technical specs against Confluence.
+       f. Call 'search_existing_tickets' to check for duplicates in Jira memory.
+       g. If unique and safe -> Call 'create_jira_issue' to generate the task.
     3. AFTER all Jira tickets/comments are processed:
        a. Call 'send_slack_summary' to post the executive meeting summary and advanced risk report to Slack.
 

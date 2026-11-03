@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from db import search_past_tickets, save_ticket_memory
 from atlassian_context import query_teamwork_graph_goals, search_confluence_decisions
-from advanced_pm_sentinel import detect_circular_dependencies, trace_root_cause_and_regression
+from advanced_pm_sentinel import detect_circular_dependencies, detect_confluence_spec_drift, trace_root_cause_and_regression
 
 load_dotenv()
 # Sanitize critical environment variables
@@ -358,6 +358,23 @@ def check_circular_dependencies(task_summary: str) -> str:
 def trace_bug_root_cause(task_description: str) -> str:
     """[Advanced] Traces recent Git/Bitbucket commit history and Jira logs to locate bug root-causes."""
     return trace_root_cause_and_regression(task_description)
+
+@mcp.tool()
+def check_spec_drift(task_summary: str, task_description: str) -> str:
+    """[Advanced Tip B] Detects documentation spec-drift between meeting tasks and Confluence specs."""
+    return detect_confluence_spec_drift(task_summary, task_description)
+
+from dev_copilot_engine import triage_pull_request, track_deployment_event
+
+@mcp.tool()
+def review_pull_request(pr_title: str, pr_diff_summary: str, author: str) -> str:
+    """[Software Teams] Performs smart code review triage on Bitbucket/GitHub pull requests."""
+    return triage_pull_request(pr_title, pr_diff_summary, author)
+
+@mcp.tool()
+def monitor_deployment(repo_name: str, commit_hash: str, deployment_status: str, environment: str) -> str:
+    """[Deployment Awareness] Tracks CI/CD deployment pipelines and updates engineering context."""
+    return monitor_deployment(repo_name, commit_hash, deployment_status, environment)
 
 if __name__ == "__main__":
     mcp.run()
